@@ -1,0 +1,101 @@
+#!/bin/bash
+
+DATE=$(date +"%d%b%Y %H:%M:%S")
+LOGFILE="/var/log/install-logstash"
+
+#function LOG
+function LOG() {
+  echo -e "[${DATE}] - $1" | tee -a ${LOGFILE}
+}
+
+function validation_so() {
+  grep -i centos /etc/issue
+  if [ $? -ne 0 ]; then
+  	echo "Aparentemente, o SO não é CentOS";
+  	echo "O script de setup não está homologado para esse SO";
+  	echo "Deseja continuar a instalação mesmo assim?";
+    echo
+  	echo "1 - Sim"
+    echo "2 - Não"
+    echo -n "Entre com uma opção: "
+    read option
+
+    echo
+  	case $option in
+  		1) echo "Ok! Continuando instalação";clear ;;
+  		2) echo "Saindo... "; exit;;
+  		*) "Opção desconhecida. Tente novamente! ";;
+  	esac
+  else
+  	echo "SO é suportado. Continuando instalação";clear;
+  fi
+}
+
+# Verificando / Instalando dependencias
+
+# Instalando wget
+function validation_wget() {
+  LOG "Instalando wget"
+  yum list installed wget
+  install=$?
+  if [ $install -ne "0" ]; then
+    yum install wget -y
+  fi
+  LOG "Wget instalado, continuando ...."
+}
+
+# Instalando java
+function validation_java8() {
+  LOG "Instalando java"
+	yum list installed java-1.8.0-openjdk.x86_64
+	install=$?
+  if [ $install -ne "0" ]; then
+    yum install java-1.8.0-openjdk.x86_64 -y
+  fi
+  LOG "Java instalado, continuando ...."
+}
+
+# Instalando logstash
+function validation_logstash() {
+  LOG "Instalando logstash"
+  rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
+  cat > /etc/yum.repos.d/logstash.repo <<EOF
+[logstash-6.x]
+name=Elastic repository for 6.x packages
+baseurl=https://artifacts.elastic.co/packages/6.x/yum
+gpgcheck=1
+gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+enabled=1
+autorefresh=1
+type=rpm-md
+
+EOF
+  
+   yum install logstash -y
+   initctl start logstash 
+   initctl status logstash  
+  LOG "Logstash instalado, continuando ...." 
+}
+
+function soh_vai () {
+  clear
+  echo "###########################################"
+  echo "###  INSTALANDO LOGSTASH E DEPENDECIAS  ###"
+  echo "###########################################"
+  echo
+  echo "--> Validando SO"
+  validation_so
+  echo
+  echo "--> Instalando WGET"
+  validation_wget
+  echo
+  echo "--> Instalando JAVA"
+  validation_java8
+  echo
+  echo "--> Instalando Logstash"
+  validation_logstash
+
+  LOG "Ambiente finalizado."
+}
+
+soh_vai
